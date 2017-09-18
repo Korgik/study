@@ -8,7 +8,7 @@ interface Income{
 
 // Абстрактный класс товара и его метод(!)
 public abstract class AbstractItem implements Income{
-	public absrtact function AbstractIncome($AbstractValue=100);	
+	public absrtact function Income();	
 }
 // Цифровой товар. стоймость постоянная(статическая) и дешевле штучного в два раза.
 public class DigitalItems extends AbstractItem implements Income{
