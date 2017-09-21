@@ -1,0 +1,85 @@
+.main {
+    width: 75%;
+    height: 100%;
+    border: 1px solid black;
+    float: left;
+}
+
+h3 {
+    font-family: monospace;
+    font-size: 2em;
+    text-align: center;
+    color: #3c3c3c;
+}
+
+.list {
+    padding: 0;
+    margin: 0;
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.list img:hover {
+    outline: 1px solid blue;
+    transform: scale(1.03);
+}
+
+.form {
+    width: 22%;
+    float: right;
+    height: 100%;
+    border: 1px solid black;
+    padding: 10px;
+}
+
+.form p {
+    color: #3c3c3c;
+    font-family: sans-serif;
+}
+
+.form input[type="file"] {
+    width: 100%;
+}
+
+.imageinner {
+    width: 350px;
+    padding: 0 10px;
+}
+
+.textlabel {
+    height: 35px;
+}
+
+.imageinner .seen {
+  float: left;
+  margin-left: 20px;
+
+}
+
+.imageinner .opened {
+  float: right;
+  margin-right: 20px;    
+}
+
+.imageinner .textlabel .seen_icon,.opened_icon {
+    height: 15px;
+    width: 25px;
+    display: inline-block;
+    float: left;    
+    opacity: 0.6;
+}
+
+.imageinner .textlabel span {
+    font-size: 15px;
+    float: right;
+    color: blue;
+}
+
+.imageinner .textlabel .seen_icon {
+    background: url(./icons/seen.svg) no-repeat center center;
+}
+
+.imageinner .textlabel .opened_icon {
+    background: url(./icons/opened.svg) no-repeat center center;
+}

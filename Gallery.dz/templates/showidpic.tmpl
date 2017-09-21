@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" type="text/css" href="main.css" />
+  <title>{{ title }}</title>
+</head>
+<body>
+  <div id="page">
+    <div id="header">
+      {% include 'primary.tmpl' %}
+    </div>
+    <div><img src="{{ image }}" alt="pic" style="width: 100%;">
+    <br>
+      {{count}}
+    </div>
+    <div id="footer">
+      {% include 'footer.tmpl' %}
+    </div>
+  </div>
+</body>
+</html>
