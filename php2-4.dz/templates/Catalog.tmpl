@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<title>Каталог</title>
+</head>
+<body>
+	<div class="container">
+		{{% for item in items %}}
+		<h1 class="item_main">Каталог товаров</h1>
+		<div class="block_item">
+			<p class="block id_item">{{ item.id }}</p>
+			<h4 class="block name_item">{{ item.name }}</h4>
+			<p class="block price_item">{{ item.price }}</p>
+			<img src="{{ item.parth }}" alt="" class="block img_name">
+		</div>
+		{{% endfor %}}
+	</div>
+</body>
+</html>

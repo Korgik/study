@@ -1,0 +1,13 @@
+.block{
+	margin:5px;
+}
+.block_item{
+	display: flex;
+	flex-direction: row;
+	border: 4px groove;
+	justify-content: center;
+}
+.img_name{
+	width: 220px;
+	height: 220px;
+}
