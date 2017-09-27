@@ -1,4 +1,4 @@
-<!--Страница с регестрацией-->
+<!--Страница с регистрацией-->
 <div style="color: red; font-size: 14px; padding: 20px; margin: 0 auto; display: block; width:400px;">
 
 <?php if (isset($errors) && is_array($errors)): ?>
