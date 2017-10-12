@@ -16,23 +16,17 @@
  */
 class Twig_Loader_Filesystem implements Twig_LoaderInterface, Twig_ExistsLoaderInterface
 {
-    /** Identifier of the main namespace. */
-    const MAIN_NAMESPACE = '__main__';
-
-    protected $paths = array();
-    protected $cache = array();
-    protected $errorCache = array();
+    protected $paths;
+    protected $cache;
 
     /**
      * Constructor.
      *
      * @param string|array $paths A path or an array of paths where to look for templates
      */
-    public function __construct($paths = array())
+    public function __construct($paths)
     {
-        if ($paths) {
-            $this->setPaths($paths);
-        }
+        $this->setPaths($paths);
     }
 
     /**
@@ -42,7 +36,7 @@ class Twig_Loader_Filesystem implements Twig_LoaderInterface, Twig_ExistsLoaderI
      *
      * @return array The array of paths where to look for templates
      */
-    public function getPaths($namespace = self::MAIN_NAMESPACE)
+    public function getPaths($namespace = '__main__')
     {
         return isset($this->paths[$namespace]) ? $this->paths[$namespace] : array();
     }
@@ -50,7 +44,7 @@ class Twig_Loader_Filesystem implements Twig_LoaderInterface, Twig_ExistsLoaderI
     /**
      * Returns the path namespaces.
      *
-     * The main namespace is always defined.
+     * The "__main__" namespace is always defined.
      *
      * @return array The array of defined namespaces
      */
@@ -65,7 +59,7 @@ class Twig_Loader_Filesystem implements Twig_LoaderInterface, Twig_ExistsLoaderI
      * @param string|array $paths     A path or an array of paths where to look for templates
      * @param string       $namespace A path namespace
      */
-    public function setPaths($paths, $namespace = self::MAIN_NAMESPACE)
+    public function setPaths($paths, $namespace = '__main__')
     {
         if (!is_array($paths)) {
             $paths = array($paths);
@@ -85,10 +79,10 @@ class Twig_Loader_Filesystem implements Twig_LoaderInterface, Twig_ExistsLoaderI
      *
      * @throws Twig_Error_Loader
      */
-    public function addPath($path, $namespace = self::MAIN_NAMESPACE)
+    public function addPath($path, $namespace = '__main__')
     {
         // invalidate the cache
-        $this->cache = $this->errorCache = array();
+        $this->cache = array();
 
         if (!is_dir($path)) {
             throw new Twig_Error_Loader(sprintf('The "%s" directory does not exist.', $path));
@@ -105,10 +99,10 @@ class Twig_Loader_Filesystem implements Twig_LoaderInterface, Twig_ExistsLoaderI
      *
      * @throws Twig_Error_Loader
      */
-    public function prependPath($path, $namespace = self::MAIN_NAMESPACE)
+    public function prependPath($path, $namespace = '__main__')
     {
         // invalidate the cache
-        $this->cache = $this->errorCache = array();
+        $this->cache = array();
 
         if (!is_dir($path)) {
             throw new Twig_Error_Loader(sprintf('The "%s" directory does not exist.', $path));
@@ -144,14 +138,15 @@ class Twig_Loader_Filesystem implements Twig_LoaderInterface, Twig_ExistsLoaderI
      */
     public function exists($name)
     {
-        $name = $this->normalizeName($name);
-
+        $name = (string) $name;
         if (isset($this->cache[$name])) {
             return true;
         }
 
         try {
-            return false !== $this->findTemplate($name, false);
+            $this->findTemplate($name);
+
+            return true;
         } catch (Twig_Error_Loader $exception) {
             return false;
         }
@@ -165,87 +160,49 @@ class Twig_Loader_Filesystem implements Twig_LoaderInterface, Twig_ExistsLoaderI
         return filemtime($this->findTemplate($name)) <= $time;
     }
 
-    /**
-     * Checks if the template can be found.
-     *
-     * @param string  $name  The template name
-     * @param Boolean $throw Whether to throw an exception when an error occurs
-     *
-     * @return string|false The template name or false
-     */
-    protected function findTemplate($name, $throw = true)
+    protected function findTemplate($name)
     {
-        $name = $this->normalizeName($name);
+        $name = (string) $name;
+
+        // normalize name
+        $name = preg_replace('#/{2,}#', '/', strtr($name, '\\', '/'));
 
         if (isset($this->cache[$name])) {
             return $this->cache[$name];
         }
 
-        if (isset($this->errorCache[$name])) {
-            if (!$throw) {
-                return false;
-            }
-
-            throw new Twig_Error_Loader($this->errorCache[$name]);
-        }
-
         $this->validateName($name);
 
-        list($namespace, $shortname) = $this->parseName($name);
-
-        if (!isset($this->paths[$namespace])) {
-            $this->errorCache[$name] = sprintf('There are no registered paths for namespace "%s".', $namespace);
-
-            if (!$throw) {
-                return false;
-            }
-
-            throw new Twig_Error_Loader($this->errorCache[$name]);
-        }
-
-        foreach ($this->paths[$namespace] as $path) {
-            if (is_file($path.'/'.$shortname)) {
-                return $this->cache[$name] = $this->normalizePath($path.'/'.$shortname);
-            }
-        }
-
-        $this->errorCache[$name] = sprintf('Unable to find template "%s" (looked into: %s).', $name, implode(', ', $this->paths[$namespace]));
-
-        if (!$throw) {
-            return false;
-        }
-
-        throw new Twig_Error_Loader($this->errorCache[$name]);
-    }
-
-    private function normalizeName($name)
-    {
-        return preg_replace('#/{2,}#', '/', str_replace('\\', '/', $name));
-    }
-
-    private function parseName($name, $default = self::MAIN_NAMESPACE)
-    {
+        $namespace = '__main__';
         if (isset($name[0]) && '@' == $name[0]) {
             if (false === $pos = strpos($name, '/')) {
                 throw new Twig_Error_Loader(sprintf('Malformed namespaced template name "%s" (expecting "@namespace/template_name").', $name));
             }
 
             $namespace = substr($name, 1, $pos - 1);
-            $shortname = substr($name, $pos + 1);
 
-            return array($namespace, $shortname);
+            $name = substr($name, $pos + 1);
         }
 
-        return array($default, $name);
+        if (!isset($this->paths[$namespace])) {
+            throw new Twig_Error_Loader(sprintf('There are no registered paths for namespace "%s".', $namespace));
+        }
+
+        foreach ($this->paths[$namespace] as $path) {
+            if (is_file($path.'/'.$name)) {
+                return $this->cache[$name] = $path.'/'.$name;
+            }
+        }
+
+        throw new Twig_Error_Loader(sprintf('Unable to find template "%s" (looked into: %s).', $name, implode(', ', $this->paths[$namespace])));
     }
 
-    private function validateName($name)
+    protected function validateName($name)
     {
         if (false !== strpos($name, "\0")) {
             throw new Twig_Error_Loader('A template name cannot contain NUL bytes.');
         }
 
-        $name = ltrim($name, '/');
         $parts = explode('/', $name);
         $level = 0;
         foreach ($parts as $part) {
@@ -259,20 +216,5 @@ class Twig_Loader_Filesystem implements Twig_LoaderInterface, Twig_ExistsLoaderI
                 throw new Twig_Error_Loader(sprintf('Looks like you try to load a template outside configured directories (%s).', $name));
             }
         }
-    }
-
-    private function normalizePath($path)
-    {
-        $parts = explode('/', str_replace('\\', '/', $path));
-        $new = array();
-        foreach ($parts as $i => $part) {
-            if ('..' === $part) {
-                array_pop($new);
-            } elseif ('.' !== $part && ('' !== $part || 0 === $i)) {
-                $new[] = $part;
-            }
-        }
-
-        return implode('/', $new);
     }
 }

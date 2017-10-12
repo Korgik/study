@@ -4,48 +4,14 @@ class CategoriesController extends Controller
 
     public $view = 'categories';
 
-    public function index($data)
+    public function index($rdata)
     {
-        $categories = Category::getCategories($data['id']);
+        $data = array();
+
+        $data['categories'] = Category::getCategories(isset($rdata['id']) ? $rdata['id'] : 0);
+        $data['goods'] = Good::getGoods(isset($rdata['id']) ? $rdata['id'] : 0);
         
-        $goods = Good::getGoodsCategory($data);
-        
-         //print_r($data);
-        
-        return ['subcategories' => $categories, 'goods' => $goods];
-        
-       
+        return $data;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ?>

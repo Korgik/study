@@ -23,6 +23,13 @@
  */
 class Twig_TokenParser_For extends Twig_TokenParser
 {
+    /**
+     * Parses a token and returns a node.
+     *
+     * @param Twig_Token $token A Twig_Token instance
+     *
+     * @return Twig_NodeInterface A Twig_NodeInterface instance
+     */
     public function parse(Twig_Token $token)
     {
         $lineno = $token->getLine();
@@ -32,7 +39,8 @@ class Twig_TokenParser_For extends Twig_TokenParser
         $seq = $this->parser->getExpressionParser()->parseExpression();
 
         $ifexpr = null;
-        if ($stream->nextIf(Twig_Token::NAME_TYPE, 'if')) {
+        if ($stream->test(Twig_Token::NAME_TYPE, 'if')) {
+            $stream->next();
             $ifexpr = $this->parser->getExpressionParser()->parseExpression();
         }
 
@@ -76,10 +84,10 @@ class Twig_TokenParser_For extends Twig_TokenParser
     }
 
     // the loop variable cannot be used in the condition
-    private function checkLoopUsageCondition(Twig_TokenStream $stream, Twig_Node $node)
+    protected function checkLoopUsageCondition(Twig_TokenStream $stream, Twig_NodeInterface $node)
     {
         if ($node instanceof Twig_Node_Expression_GetAttr && $node->getNode('node') instanceof Twig_Node_Expression_Name && 'loop' == $node->getNode('node')->getAttribute('name')) {
-            throw new Twig_Error_Syntax('The "loop" variable cannot be used in a looping condition.', $node->getLine(), $stream->getFilename());
+            throw new Twig_Error_Syntax('The "loop" variable cannot be used in a looping condition', $node->getLine(), $stream->getFilename());
         }
 
         foreach ($node as $n) {
@@ -93,12 +101,12 @@ class Twig_TokenParser_For extends Twig_TokenParser
 
     // check usage of non-defined loop-items
     // it does not catch all problems (for instance when a for is included into another or when the variable is used in an include)
-    private function checkLoopUsageBody(Twig_TokenStream $stream, Twig_Node $node)
+    protected function checkLoopUsageBody(Twig_TokenStream $stream, Twig_NodeInterface $node)
     {
         if ($node instanceof Twig_Node_Expression_GetAttr && $node->getNode('node') instanceof Twig_Node_Expression_Name && 'loop' == $node->getNode('node')->getAttribute('name')) {
             $attribute = $node->getNode('attribute');
             if ($attribute instanceof Twig_Node_Expression_Constant && in_array($attribute->getAttribute('value'), array('length', 'revindex0', 'revindex', 'last'))) {
-                throw new Twig_Error_Syntax(sprintf('The "loop.%s" variable is not defined when looping with a condition.', $attribute->getAttribute('value')), $node->getLine(), $stream->getFilename());
+                throw new Twig_Error_Syntax(sprintf('The "loop.%s" variable is not defined when looping with a condition', $attribute->getAttribute('value')), $node->getLine(), $stream->getFilename());
             }
         }
 
@@ -116,6 +124,11 @@ class Twig_TokenParser_For extends Twig_TokenParser
         }
     }
 
+    /**
+     * Gets the tag name associated with this token parser.
+     *
+     * @return string The tag name
+     */
     public function getTag()
     {
         return 'for';

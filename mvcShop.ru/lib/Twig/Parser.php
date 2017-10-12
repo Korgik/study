@@ -15,21 +15,22 @@
  *
  * @author Fabien Potencier <fabien@symfony.com>
  */
-class Twig_Parser
+class Twig_Parser implements Twig_ParserInterface
 {
-    private $stack = array();
-    private $stream;
-    private $parent;
-    private $handlers;
-    private $visitors;
-    private $expressionParser;
-    private $blocks;
-    private $blockStack;
-    private $macros;
-    private $env;
-    private $importedSymbols;
-    private $traits;
-    private $embeddedTemplates = array();
+    protected $stack = array();
+    protected $stream;
+    protected $parent;
+    protected $handlers;
+    protected $visitors;
+    protected $expressionParser;
+    protected $blocks;
+    protected $blockStack;
+    protected $macros;
+    protected $env;
+    protected $reservedMacroNames;
+    protected $importedSymbols;
+    protected $traits;
+    protected $embeddedTemplates = array();
 
     /**
      * Constructor.
@@ -48,7 +49,7 @@ class Twig_Parser
 
     public function getVarName()
     {
-        return sprintf('__internal_%s', hash('sha256', uniqid(mt_rand(), true), false));
+        return sprintf('__internal_%s', hash('sha1', uniqid(mt_rand(), true), false));
     }
 
     public function getFilename()
@@ -57,28 +58,23 @@ class Twig_Parser
     }
 
     /**
-     * {@inheritdoc}
+     * Converts a token stream to a node tree.
+     *
+     * @param Twig_TokenStream $stream A token stream instance
+     *
+     * @return Twig_Node_Module A node tree
      */
     public function parse(Twig_TokenStream $stream, $test = null, $dropNeedle = false)
     {
         // push all variables into the stack to keep the current state of the parser
-        // using get_object_vars() instead of foreach would lead to https://bugs.php.net/71336
-        $vars = array();
-        foreach ($this as $k => $v) {
-            $vars[$k] = $v;
-        }
-
-        unset($vars['stack'], $vars['env'], $vars['handlers'], $vars['visitors'], $vars['expressionParser'], $vars['reservedMacroNames']);
+        $vars = get_object_vars($this);
+        unset($vars['stack'], $vars['env'], $vars['handlers'], $vars['visitors'], $vars['expressionParser']);
         $this->stack[] = $vars;
 
         // tag handlers
         if (null === $this->handlers) {
-            $this->handlers = array();
-            foreach ($this->env->getTokenParsers() as $handler) {
-                $handler->setParser($this);
-
-                $this->handlers[$handler->getTag()] = $handler;
-            }
+            $this->handlers = $this->env->getTokenParsers();
+            $this->handlers->setParser($this);
         }
 
         // node visitors
@@ -102,8 +98,10 @@ class Twig_Parser
         try {
             $body = $this->subparse($test, $dropNeedle);
 
-            if (null !== $this->parent && null === $body = $this->filterBodyNodes($body)) {
-                $body = new Twig_Node();
+            if (null !== $this->parent) {
+                if (null === $body = $this->filterBodyNodes($body)) {
+                    $body = new Twig_Node();
+                }
             }
         } catch (Twig_Error_Syntax $e) {
             if (!$e->getTemplateFile()) {
@@ -117,7 +115,7 @@ class Twig_Parser
             throw $e;
         }
 
-        $node = new Twig_Node_Module(new Twig_Node_Body(array($body)), $this->parent, new Twig_Node($this->blocks), new Twig_Node($this->macros), new Twig_Node($this->traits), $this->embeddedTemplates, $this->getFilename(), $stream->getSource());
+        $node = new Twig_Node_Module(new Twig_Node_Body(array($body)), $this->parent, new Twig_Node($this->blocks), new Twig_Node($this->macros), new Twig_Node($this->traits), $this->embeddedTemplates, $this->getFilename());
 
         $traverser = new Twig_NodeTraverser($this->env, $this->visitors);
 
@@ -154,10 +152,10 @@ class Twig_Parser
                     $token = $this->getCurrentToken();
 
                     if ($token->getType() !== Twig_Token::NAME_TYPE) {
-                        throw new Twig_Error_Syntax('A block must start with a tag name.', $token->getLine(), $this->getFilename());
+                        throw new Twig_Error_Syntax('A block must start with a tag name', $token->getLine(), $this->getFilename());
                     }
 
-                    if (null !== $test && $test($token)) {
+                    if (null !== $test && call_user_func($test, $token)) {
                         if ($dropNeedle) {
                             $this->stream->next();
                         }
@@ -169,24 +167,27 @@ class Twig_Parser
                         return new Twig_Node($rv, array(), $lineno);
                     }
 
-                    if (!isset($this->handlers[$token->getValue()])) {
+                    $subparser = $this->handlers->getTokenParser($token->getValue());
+                    if (null === $subparser) {
                         if (null !== $test) {
-                            $e = new Twig_Error_Syntax(sprintf('Unexpected "%s" tag', $token->getValue()), $token->getLine(), $this->getFilename());
-
+                            $error = sprintf('Unexpected tag name "%s"', $token->getValue());
                             if (is_array($test) && isset($test[0]) && $test[0] instanceof Twig_TokenParserInterface) {
-                                $e->appendMessage(sprintf(' (expecting closing tag for the "%s" tag defined near line %s).', $test[0]->getTag(), $lineno));
+                                $error .= sprintf(' (expecting closing tag for the "%s" tag defined near line %s)', $test[0]->getTag(), $lineno);
                             }
-                        } else {
-                            $e = new Twig_Error_Syntax(sprintf('Unknown "%s" tag.', $token->getValue()), $token->getLine(), $this->getFilename());
-                            $e->addSuggestions($token->getValue(), array_keys($this->env->getTags()));
+
+                            throw new Twig_Error_Syntax($error, $token->getLine(), $this->getFilename());
                         }
 
-                        throw $e;
+                        $message = sprintf('Unknown tag name "%s"', $token->getValue());
+                        if ($alternatives = $this->env->computeAlternatives($token->getValue(), array_keys($this->env->getTags()))) {
+                            $message = sprintf('%s. Did you mean "%s"', $message, implode('", "', $alternatives));
+                        }
+
+                        throw new Twig_Error_Syntax($message, $token->getLine(), $this->getFilename());
                     }
 
                     $this->stream->next();
 
-                    $subparser = $this->handlers[$token->getValue()];
                     $node = $subparser->parse($token);
                     if (null !== $node) {
                         $rv[] = $node;
@@ -245,7 +246,7 @@ class Twig_Parser
         return $this->blocks[$name];
     }
 
-    public function setBlock($name, Twig_Node_Block $value)
+    public function setBlock($name, $value)
     {
         $this->blocks[$name] = new Twig_Node_Body(array($value), array(), $value->getLine());
     }
@@ -257,17 +258,19 @@ class Twig_Parser
 
     public function setMacro($name, Twig_Node_Macro $node)
     {
+        if (null === $this->reservedMacroNames) {
+            $this->reservedMacroNames = array();
+            $r = new ReflectionClass($this->env->getBaseTemplateClass());
+            foreach ($r->getMethods() as $method) {
+                $this->reservedMacroNames[] = $method->getName();
+            }
+        }
+
+        if (in_array($name, $this->reservedMacroNames)) {
+            throw new Twig_Error_Syntax(sprintf('"%s" cannot be used as a macro name as it is a reserved keyword', $name), $node->getLine(), $this->getFilename());
+        }
+
         $this->macros[$name] = $node;
-    }
-
-    /**
-     * @deprecated since 2.0. Will be removed in 3.0. There is no reserved macro names anymore
-     */
-    public function isReservedMacroName($name)
-    {
-        @trigger_error('The '.__METHOD__.' method is deprecated since version 2.0 and will be removed in 3.0.', E_USER_DEPRECATED);
-
-        return false;
     }
 
     public function addTrait($trait)
@@ -356,7 +359,7 @@ class Twig_Parser
         return $this->stream->getCurrent();
     }
 
-    private function filterBodyNodes(Twig_Node $node)
+    protected function filterBodyNodes(Twig_NodeInterface $node)
     {
         // check that the body does not contain non-empty output nodes
         if (
@@ -381,7 +384,7 @@ class Twig_Parser
         }
 
         foreach ($node as $k => $n) {
-            if (null !== $n && null === $this->filterBodyNodes($n)) {
+            if (null !== $n && null === $n = $this->filterBodyNodes($n)) {
                 $node->removeNode($k);
             }
         }

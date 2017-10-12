@@ -25,6 +25,13 @@
  */
 class Twig_TokenParser_Use extends Twig_TokenParser
 {
+    /**
+     * Parses a token and returns a node.
+     *
+     * @param Twig_Token $token A Twig_Token instance
+     *
+     * @return Twig_NodeInterface A Twig_NodeInterface instance
+     */
     public function parse(Twig_Token $token)
     {
         $template = $this->parser->getExpressionParser()->parseExpression();
@@ -35,28 +42,41 @@ class Twig_TokenParser_Use extends Twig_TokenParser
         }
 
         $targets = array();
-        if ($stream->nextIf('with')) {
+        if ($stream->test('with')) {
+            $stream->next();
+
             do {
                 $name = $stream->expect(Twig_Token::NAME_TYPE)->getValue();
 
                 $alias = $name;
-                if ($stream->nextIf('as')) {
+                if ($stream->test('as')) {
+                    $stream->next();
+
                     $alias = $stream->expect(Twig_Token::NAME_TYPE)->getValue();
                 }
 
                 $targets[$name] = new Twig_Node_Expression_Constant($alias, -1);
 
-                if (!$stream->nextIf(Twig_Token::PUNCTUATION_TYPE, ',')) {
+                if (!$stream->test(Twig_Token::PUNCTUATION_TYPE, ',')) {
                     break;
                 }
+
+                $stream->next();
             } while (true);
         }
 
         $stream->expect(Twig_Token::BLOCK_END_TYPE);
 
         $this->parser->addTrait(new Twig_Node(array('template' => $template, 'targets' => new Twig_Node($targets))));
+
+        return null;
     }
 
+    /**
+     * Gets the tag name associated with this token parser.
+     *
+     * @return string The tag name
+     */
     public function getTag()
     {
         return 'use';

@@ -23,20 +23,21 @@ class Good extends Model {
         ];
     }
 
-    public static function getGoodsCategory($data)
+    public static function getGoods($categoryId)
     {
         return db::getInstance()->Select(
-            'SELECT id_category, `name`, price, id_good, status FROM goods WHERE id_category = :category AND status=:status',
-            ['status' => Status::Active, 'category' => $data['id']]);
+            'SELECT id_good, `name`, price FROM goods WHERE id_category = :category AND status=:status',
+            ['status' => Status::Active, 'category' => $categoryId]);
     }
-    
-    public static function getOneGood($data)
+
+    public static function getGood($id_good)
     {
-        return db::getInstance()->Select(
-            'SELECT id_category, `name`, price, id_good, status FROM goods WHERE id_good = :good AND status=:status',
-            ['status' => Status::Active, 'good' => $data['id']]);
+        $product_info = db::getInstance()->Select(
+            'SELECT * FROM goods WHERE id_good = :id_good',
+            ['id_good' => (int)$id_good]);
+
+        if ($product_info) {
+            return $product_info[0];
+        }
     }
 }
-
-
-//$categoryId

@@ -18,12 +18,8 @@ class db
 
     /*
      * Запрещаем копировать объект
-     */ 
-    
-    private function __construct() {
-        
-        }
-    
+     */
+    private function __construct() {}
     private function __sleep() {}
     private function __wakeup() {}
     private function __clone() {}
@@ -48,10 +44,22 @@ class db
      */
     public function Query($query, $params = array())
     {
-        $res = $this->db->prepare($query);
-        $res->execute($params);
-        return $res;
-        
+        try {
+            $res = $this->db->prepare($query);
+            $res->execute($params);
+
+            return $res;
+        }
+
+        catch
+            (Exception $e) {
+                if (defined(DEBUG)) {
+                    echo 'Выброшено исключение: ', $e->getMessage(), "\n";
+                    var_dump($query);
+                    var_dump($params);
+                }
+        };
+
     }
 
     /*
@@ -63,68 +71,10 @@ class db
         if ($result) {
             return $result->fetchAll();
         }
-        
-        
     }
-    
-    /*public function Select($query,$arr){ // поправил, добавил передачу массива псевдопеременных
-  		$q = $this->db->prepare($query);
-      $q->execute($arr);
-  		if($q->errorCode() != PDO::ERR_NONE){
-  			$info = $q->errorInfo();
-  			die($info[2]);
-  		}
-  		return $q->fetchAll();
-  	}
-  	public function Insert($table , $object){
-  		$columns = array();
-  		foreach($object as $key => $value){
-  			$columns[] = $key;
-  			$masks[] = ":$key";
-  			if($value === null){
-  				$object[$key] = 'NULL';
-  			}
-  		}
-  		$columns_s = implode(',', $columns);
-  		$masks_s = implode(',', $masks);
-  		$query = "INSERT INTO $table ($columns_s) VALUES ($masks_s)";
-  		$q = $this->db->prepare($query);
-  		$q->execute($object);
-  		if($q->errorCode() != PDO::ERR_NONE){
-  			$info = $q->errorInfo();
-  			die($info[2]);
-  		}
-  		return $this->db->lastInsertId();
-  	}
-  	public function Update($table,$object,$where){
-  		$sets = array();
-  		foreach($object as $key => $value){
-  			$sets[] = "$key=:$key";
-  			if($value === NULL){
-  				$object[$key]='NULL';
-  			}
-  		 }
-  		$sets_s = implode(',',$sets);
-  		$query = "UPDATE $table SET $sets_s WHERE $where";
-  		$q = $this->db->prepare($query);
-  		$q->execute($object);
-  		if($q->errorCode() != PDO::ERR_NONE){
-  			$info = $q->errorInfo();
-  			die($info[2]);
-  		}
-  		return $q->rowCount();
-  	}
-  	public function Delete($table, $where){
-  		$query = "DELETE FROM $table WHERE $where";
-  		$q = $this->db->prepare($query);
-  		$q->execute();
-  		if($q->errorCode() != PDO::ERR_NONE){
-  			$info = $q->errorInfo();
-  			die($info[2]);
-  		}
-  		return $q->rowCount();
-  	}*/
-    
-    
+
+    public function lastId() {
+        return $this->db->lastInsertId();
+    }
 }
 ?>

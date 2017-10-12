@@ -10,7 +10,7 @@
  */
 class Twig_Node_Expression_Array extends Twig_Node_Expression
 {
-    private $index;
+    protected $index;
 
     public function __construct(array $elements, $lineno)
     {
@@ -60,6 +60,11 @@ class Twig_Node_Expression_Array extends Twig_Node_Expression
         array_push($this->nodes, $key, $value);
     }
 
+    /**
+     * Compiles the node to PHP.
+     *
+     * @param Twig_Compiler A Twig_Compiler instance
+     */
     public function compile(Twig_Compiler $compiler)
     {
         $compiler->raw('array(');
